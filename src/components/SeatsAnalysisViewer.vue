@@ -46,9 +46,8 @@
                 <h2>All assigned seats </h2>
                 <br>
             <v-data-table :headers="headers" :items="totalSeats" :items-per-page="10" class="elevation-2">
-                <template v-slot:item="{ item, index }">
+                <template v-slot:item="{ item }">
                     <tr>
-                        <td>{{ index + 1 }}</td>
                         <td>{{ item.login }}</td>
                         <td>{{ item.id }}</td>
                         <td>{{ item.team }}</td>
@@ -103,7 +102,6 @@ props: {
 data() {
     return {
         headers: [
-            { title: 'S.No', key: 'serialNumber'},
             { title: 'Login', key: 'login' },
             { title: 'GitHub ID', key: 'id' },
             { title: 'Assigning team', key: 'team' },

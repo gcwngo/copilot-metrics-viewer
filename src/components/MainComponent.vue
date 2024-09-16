@@ -5,22 +5,17 @@
         <v-icon>mdi-github</v-icon>
       </v-btn>
 
-      <v-toolbar-title class="toolbar-title">Copilot Metrics Viewer | {{ capitalizedItemName }} : {{ displayedViewName }}  {{ teamName }}
-         
-      </v-toolbar-title>
+      <v-toolbar-title class="toolbar-title">Copilot Metrics Viewer | {{ capitalizedItemName }} : {{ displayedViewName }}</v-toolbar-title>
       <h2 class="error-message"> {{ mockedDataMessage }} </h2>
       <v-spacer></v-spacer>
 
       <template v-slot:extension>
-
         <v-tabs v-model="tab" align-tabs="title">
           <v-tab v-for="item in tabItems" :key="item" :value="item">
             {{ item }}
           </v-tab>
         </v-tabs>
-
       </template>
-
     </v-toolbar>
 
     <!-- API Error Message -->
@@ -36,7 +31,7 @@
               <BreakdownComponent v-if="item === 'languages'" :metrics="metrics" :breakdownKey="'language'"/>
               <BreakdownComponent v-if="item === 'editors'" :metrics="metrics" :breakdownKey="'editor'"/>
               <CopilotChatViewer v-if="item === 'copilot chat'" :metrics="metrics" />
-              <SeatsAnalysisViewer v-if="item === 'seat analysis'" :seats="seats" />
+                <SeatsAnalysisViewer v-if="item === 'seat analysis'" :seats="seats" />
               <ApiResponse v-if="item === 'api response'" :metrics="metrics" :seats="seats" />
             </v-card>
           </v-window-item>
@@ -50,7 +45,6 @@
 <script lang='ts'>
 import { defineComponent, ref } from 'vue'
 import { getMetricsApi } from '../api/GitHubApi';
-import { getTeamMetricsApi } from '../api/GitHubApi';
 import { getSeatsApi } from '../api/ExtractSeats';
 import { Metrics } from '../model/Metrics';
 import { Seat } from "../model/Seat";
@@ -61,7 +55,6 @@ import BreakdownComponent from './BreakdownComponent.vue'
 import CopilotChatViewer from './CopilotChatViewer.vue' 
 import SeatsAnalysisViewer from './SeatsAnalysisViewer.vue'
 import ApiResponse from './ApiResponse.vue'
-import config from '../config';
 
 export default defineComponent({
   name: 'MainComponent',
@@ -74,41 +67,39 @@ export default defineComponent({
   },
   computed: {
     gitHubOrgName() {
-      return config.github.org;
+      return process.env.VUE_APP_GITHUB_ORG;
     },
     itemName() {
-      return config.scope.type;
+      if (process.env.VUE_APP_SCOPE === 'enterprise' || process.env.VUE_APP_SCOPE === 'organization') {
+        return process.env.VUE_APP_SCOPE;
+      } else {
+        console.log("invalid");
+        return 'invalid';
+      }
     },
     capitalizedItemName():string {
       return this.itemName.charAt(0).toUpperCase() + this.itemName.slice(1);
     },
     displayedViewName(): string {
-      return config.scope.name;
+      return this.capitalizedItemName === 'Enterprise' ? process.env.VUE_APP_GITHUB_ENT: process.env.VUE_APP_GITHUB_ORG;
     },
     isScopeOrganization() {
-      return config.scope.type === 'organization';
-    },
-    teamName(){
-      var teamName;
-      if (config.github.team && config.github.team.trim() !== '')  {
-        teamName = "| Team : " + config.github.team;
-      } else {
-        teamName = '';
-      }
-      return teamName;
+      return process.env.VUE_APP_SCOPE === 'organization';
     },
     mockedDataMessage() {
-      return config.mockedData ? 'Using mock data - see README if unintended' : '';
+      return process.env.VUE_APP_MOCKED_DATA === 'true' ? 'Using mock data - see README if unintended' : '';
     }
   },
   data () {
     return {
-      tabItems: ['languages', 'editors', 'copilot chat', 'seat analysis', 'api response'],
+      tabItems: ['languages', 'editors', 'copilot chat','seat analysis' , 'api response'],
       tab: null
     }
   },
   created() {
-    this.tabItems.unshift(this.itemName);
+    if(this.itemName !== 'invalid'){
+      this.tabItems.unshift(this.itemName);
+    }
   },
   setup() {
       const metricsReady = ref(false);
@@ -118,70 +109,35 @@ export default defineComponent({
       // API Error Message
       const apiError = ref<string | undefined>(undefined);
 
-      
-      if(config.github.team && config.github.team.trim() !== '') {
-        getTeamMetricsApi().then(data => {
+      getMetricsApi().then(data => {
         metrics.value = data;
 
         // Set metricsReady to true after the call completes.
         metricsReady.value = true;
-
+          
       }).catch(error => {
-        console.log(error);
-        // Check the status code of the error response
-        if (error.response && error.response.status) {
-          switch (error.response.status) {
-            case 401:
-              apiError.value = '401 Unauthorized access - check if your token in the .env file is correct.';
-              break;
-            case 404:
-              apiError.value = `404 Not Found - is the ${config.scope.type} '${config.scope.name}' correct?`;
-              break;
-            default:
-              apiError.value = error.message;
-              break;
-          }
-        } else {
-          // Update apiError with the error message
-          apiError.value = error.message;
+      console.log(error);
+      // Check the status code of the error response
+      if (error.response && error.response.status) {
+        switch (error.response.status) {
+          case 401:
+            apiError.value = '401 Unauthorized access - check if your token in the .env file is correct.';
+            break;
+          case 404:
+            apiError.value = `404 Not Found - is the organization '${process.env.VUE_APP_GITHUB_ORG}' correct?`;
+            break;
+          default:
+            apiError.value = error.message;
+            break;
         }
-        // Add a new line to the apiError message
-        apiError.value += ' <br> If .env file is modified, restart the app for the changes to take effect.';
-          
-      });
+      } else {
+        // Update apiError with the error message
+        apiError.value = error.message;
       }
-
-      if (metricsReady.value === false) {
-        getMetricsApi().then(data => {
-          metrics.value = data;
-
-          // Set metricsReady to true after the call completes.
-          metricsReady.value = true;
-            
-        }).catch(error => {
-        console.log(error);
-        // Check the status code of the error response
-        if (error.response && error.response.status) {
-          switch (error.response.status) {
-            case 401:
-              apiError.value = '401 Unauthorized access - check if your token in the .env file is correct.';
-              break;
-            case 404:
-              apiError.value = `404 Not Found - is the ${config.scope.type} '${config.scope.name}' correct?`;
-              break;
-            default:
-              apiError.value = error.message;
-              break;
-          }
-        } else {
-          // Update apiError with the error message
-          apiError.value = error.message;
-        }
-        // Add a new line to the apiError message
-        apiError.value += ' <br> If .env file is modified, restart the app for the changes to take effect.';
-          
-      });
-    }
+       // Add a new line to the apiError message
+       apiError.value += ' <br> If .env file is modified, restart the app for the changes to take effect.';
+        
+    });
      
     getSeatsApi().then(data => {
         seats.value = data;
@@ -198,7 +154,7 @@ export default defineComponent({
             apiError.value = '401 Unauthorized access - check if your token in the .env file is correct.';
             break;
           case 404:
-            apiError.value = `404 Not Found - is the ${config.scope.type} '${config.scope.name}' correct?`;
+            apiError.value = `404 Not Found - is the organization '${process.env.VUE_APP_GITHUB_ORG}' correct?`;
             break;
           default:
             apiError.value = error.message;
@@ -228,5 +184,4 @@ export default defineComponent({
 .error-message {
   color: red;
 }
-
 </style>

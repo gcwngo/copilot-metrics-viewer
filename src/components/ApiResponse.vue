@@ -29,7 +29,6 @@
 
 <script lang="ts">
 import { defineComponent } from 'vue';
-import config from '../config';
 
 export default defineComponent({
   name: 'ApiResponse',
@@ -45,7 +44,7 @@ export default defineComponent({
   },
   data() {
     return {
-      vueAppScope: config.scope.type,
+      vueAppScope: process.env.VUE_APP_SCOPE,
       showCopyMessage: false,
       showSeatMessage: false,
       isError: false,
